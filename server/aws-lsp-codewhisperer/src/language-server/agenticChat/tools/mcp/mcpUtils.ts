@@ -840,37 +840,104 @@ export function normalizePathFromUri(path: string, logging?: Logger): string {
  * Migrate MCP servers and their permissions from config and persona files to agent config
  */
 export async function migrateToAgentConfig(workspace: Workspace, logging: Logger, agent: Agent): Promise<void> {
-    // Process global and workspace paths separately
-    const globalConfigPath = getGlobalMcpConfigPath(workspace.fs.getUserHomeDir())
-    const globalPersonaPath = getGlobalPersonaConfigPath(workspace.fs.getUserHomeDir())
-    const globalAgentPath = getGlobalAgentConfigPath(workspace.fs.getUserHomeDir())
+    console.log('[migrateToAgentConfig] Starting migration process')
 
-    // Get workspace paths
-    const wsUris = workspace.getAllWorkspaceFolders()?.map(f => f.uri) ?? []
-    const wsConfigPaths = getWorkspaceMcpConfigPaths(wsUris)
-    const wsPersonaPaths = getWorkspacePersonaConfigPaths(wsUris)
-    const wsAgentPaths = getWorkspaceAgentConfigPaths(wsUris)
+    try {
+        // Process global and workspace paths separately
+        console.log('[migrateToAgentConfig] Getting user home directory')
+        const userHomeDir = workspace.fs.getUserHomeDir()
+        console.log('[migrateToAgentConfig] User home dir:', userHomeDir)
 
-    // Migrate global config
-    await migrateConfigToAgent(workspace, logging, globalConfigPath, globalPersonaPath, globalAgentPath, agent, true)
+        const globalConfigPath = getGlobalMcpConfigPath(userHomeDir)
+        const globalPersonaPath = getGlobalPersonaConfigPath(userHomeDir)
+        const globalAgentPath = getGlobalAgentConfigPath(userHomeDir)
 
-    // Migrate workspace configs
-    for (let i = 0; i < wsUris.length; i++) {
-        if (wsConfigPaths[i] && wsPersonaPaths[i] && wsAgentPaths[i]) {
-            // Normalize and check if the workspace config path exists before migrating
-            const normalizedWsConfigPath = normalizePathFromUri(wsConfigPaths[i], logging)
-            const wsConfigExists = await workspace.fs.exists(normalizedWsConfigPath).catch(() => false)
-            if (wsConfigExists) {
-                await migrateConfigToAgent(
-                    workspace,
-                    logging,
-                    wsConfigPaths[i],
-                    wsPersonaPaths[i],
-                    wsAgentPaths[i],
-                    agent
-                )
+        console.log('[migrateToAgentConfig] Global paths:')
+        console.log('  Config:', globalConfigPath)
+        console.log('  Persona:', globalPersonaPath)
+        console.log('  Agent:', globalAgentPath)
+
+        // Get workspace paths
+        console.log('[migrateToAgentConfig] Getting workspace folders')
+        const wsUris = workspace.getAllWorkspaceFolders()?.map(f => f.uri) ?? []
+        console.log('[migrateToAgentConfig] Workspace URIs:', wsUris)
+
+        const wsConfigPaths = getWorkspaceMcpConfigPaths(wsUris)
+        const wsPersonaPaths = getWorkspacePersonaConfigPaths(wsUris)
+        const wsAgentPaths = getWorkspaceAgentConfigPaths(wsUris)
+
+        console.log('[migrateToAgentConfig] Workspace paths:')
+        console.log('  Config paths:', wsConfigPaths)
+        console.log('  Persona paths:', wsPersonaPaths)
+        console.log('  Agent paths:', wsAgentPaths)
+
+        // Migrate global config
+        console.log('[migrateToAgentConfig] Starting global config migration')
+        try {
+            await migrateConfigToAgent(
+                workspace,
+                logging,
+                globalConfigPath,
+                globalPersonaPath,
+                globalAgentPath,
+                agent,
+                true
+            )
+            console.log('[migrateToAgentConfig] Global config migration completed')
+        } catch (error) {
+            console.error('[migrateToAgentConfig] Global config migration failed:', error)
+            throw error
+        }
+
+        // Migrate workspace configs
+        console.log('[migrateToAgentConfig] Starting workspace configs migration')
+        for (let i = 0; i < wsUris.length; i++) {
+            console.log(`[migrateToAgentConfig] Processing workspace ${i + 1}/${wsUris.length}`)
+
+            if (wsConfigPaths[i] && wsPersonaPaths[i] && wsAgentPaths[i]) {
+                try {
+                    // Normalize and check if the workspace config path exists before migrating
+                    console.log(`[migrateToAgentConfig] Normalizing workspace config path: ${wsConfigPaths[i]}`)
+                    const normalizedWsConfigPath = normalizePathFromUri(wsConfigPaths[i], logging)
+                    console.log(`[migrateToAgentConfig] Normalized path: ${normalizedWsConfigPath}`)
+
+                    console.log(`[migrateToAgentConfig] Checking if workspace config exists: ${normalizedWsConfigPath}`)
+                    const wsConfigExists = await workspace.fs.exists(normalizedWsConfigPath).catch(err => {
+                        console.error(`[migrateToAgentConfig] Error checking workspace config existence:`, err)
+                        return false
+                    })
+                    console.log(`[migrateToAgentConfig] Workspace config exists: ${wsConfigExists}`)
+
+                    if (wsConfigExists) {
+                        console.log(`[migrateToAgentConfig] Migrating workspace config ${i + 1}`)
+                        await migrateConfigToAgent(
+                            workspace,
+                            logging,
+                            wsConfigPaths[i],
+                            wsPersonaPaths[i],
+                            wsAgentPaths[i],
+                            agent
+                        )
+                        console.log(`[migrateToAgentConfig] Workspace config ${i + 1} migration completed`)
+                    } else {
+                        console.log(`[migrateToAgentConfig] Skipping workspace ${i + 1} - config does not exist`)
+                    }
+                } catch (error) {
+                    console.error(`[migrateToAgentConfig] Workspace ${i + 1} migration failed:`, error)
+                    // Continue with other workspaces instead of failing completely
+                }
+            } else {
+                console.log(`[migrateToAgentConfig] Skipping workspace ${i + 1} - missing paths`)
+                console.log(`  Config: ${wsConfigPaths[i]}`)
+                console.log(`  Persona: ${wsPersonaPaths[i]}`)
+                console.log(`  Agent: ${wsAgentPaths[i]}`)
             }
         }
+
+        console.log('[migrateToAgentConfig] Migration process completed successfully')
+    } catch (error) {
+        console.error('[migrateToAgentConfig] Migration process failed:', error)
+        throw error
     }
 }
 
@@ -886,91 +953,172 @@ async function migrateConfigToAgent(
     agent: Agent,
     isGlobalDefault: boolean = false
 ): Promise<void> {
-    // Normalize all paths to ensure consistent handling
-    const normalizedConfigPath = normalizePathFromUri(configPath, logging)
-    const normalizedPersonaPath = normalizePathFromUri(personaPath, logging)
-    agentPath = normalizePathFromUri(agentPath)
+    console.log('[migrateConfigToAgent] Starting config migration')
+    console.log(`[migrateConfigToAgent] Input paths:`)
+    console.log(`  Config: ${configPath}`)
+    console.log(`  Persona: ${personaPath}`)
+    console.log(`  Agent: ${agentPath}`)
+    console.log(`  IsGlobalDefault: ${isGlobalDefault}`)
 
-    // Check if config and agent files exist
-    const configExists = await workspace.fs.exists(normalizedConfigPath).catch(() => false)
-    const agentExists = await workspace.fs.exists(agentPath).catch(() => false)
-
-    // Only migrate if agent file does not exist
-    // If config exists, migrate from it; if not, create default agent config
-    if (agentExists) {
-        return
-    }
-
-    // Read MCP server configs directly from file
-    const serverConfigs: Record<string, MCPServerConfig> = {}
     try {
-        const raw = (await workspace.fs.readFile(normalizedConfigPath)).toString().trim()
-        if (raw) {
-            const config = JSON.parse(raw)
+        // Normalize all paths to ensure consistent handling
+        console.log('[migrateConfigToAgent] Normalizing paths')
+        const normalizedConfigPath = normalizePathFromUri(configPath, logging)
+        const normalizedPersonaPath = normalizePathFromUri(personaPath, logging)
+        agentPath = normalizePathFromUri(agentPath)
 
-            if (config.mcpServers && typeof config.mcpServers === 'object') {
-                // Add each server to the serverConfigs
-                for (const [name, serverConfig] of Object.entries(config.mcpServers)) {
-                    serverConfigs[name] = {
-                        command: (serverConfig as any).command,
-                        args: Array.isArray((serverConfig as any).args) ? (serverConfig as any).args : undefined,
-                        env: typeof (serverConfig as any).env === 'object' ? (serverConfig as any).env : undefined,
-                        initializationTimeout:
-                            typeof (serverConfig as any).initializationTimeout === 'number'
-                                ? (serverConfig as any).initializationTimeout
-                                : undefined,
-                        timeout:
-                            typeof (serverConfig as any).timeout === 'number'
-                                ? (serverConfig as any).timeout
-                                : undefined,
+        console.log(`[migrateConfigToAgent] Normalized paths:`)
+        console.log(`  Config: ${normalizedConfigPath}`)
+        console.log(`  Persona: ${normalizedPersonaPath}`)
+        console.log(`  Agent: ${agentPath}`)
+
+        // Check if config and agent files exist
+        console.log('[migrateConfigToAgent] Checking file existence')
+        const configExists = await workspace.fs.exists(normalizedConfigPath).catch(err => {
+            console.error('[migrateConfigToAgent] Error checking config existence:', err)
+            return false
+        })
+        const agentExists = await workspace.fs.exists(agentPath).catch(err => {
+            console.error('[migrateConfigToAgent] Error checking agent existence:', err)
+            return false
+        })
+
+        console.log(`[migrateConfigToAgent] File existence:`)
+        console.log(`  Config exists: ${configExists}`)
+        console.log(`  Agent exists: ${agentExists}`)
+
+        // Only migrate if agent file does not exist
+        // If config exists, migrate from it; if not, create default agent config
+        if (agentExists) {
+            console.log('[migrateConfigToAgent] Agent file already exists, skipping migration')
+            return
+        }
+
+        // Read MCP server configs directly from file
+        console.log('[migrateConfigToAgent] Reading MCP server configs')
+        const serverConfigs: Record<string, MCPServerConfig> = {}
+        try {
+            if (configExists) {
+                console.log(`[migrateConfigToAgent] Reading config file: ${normalizedConfigPath}`)
+                const raw = (await workspace.fs.readFile(normalizedConfigPath)).toString().trim()
+                console.log(`[migrateConfigToAgent] Config file content length: ${raw.length}`)
+
+                if (raw) {
+                    console.log('[migrateConfigToAgent] Parsing config JSON')
+                    const config = JSON.parse(raw)
+                    console.log('[migrateConfigToAgent] Config parsed successfully')
+
+                    if (config.mcpServers && typeof config.mcpServers === 'object') {
+                        console.log(`[migrateConfigToAgent] Found ${Object.keys(config.mcpServers).length} MCP servers`)
+                        // Add each server to the serverConfigs
+                        for (const [name, serverConfig] of Object.entries(config.mcpServers)) {
+                            console.log(`[migrateConfigToAgent] Processing server: ${name}`)
+                            serverConfigs[name] = {
+                                command: (serverConfig as any).command,
+                                args: Array.isArray((serverConfig as any).args)
+                                    ? (serverConfig as any).args
+                                    : undefined,
+                                env:
+                                    typeof (serverConfig as any).env === 'object'
+                                        ? (serverConfig as any).env
+                                        : undefined,
+                                initializationTimeout:
+                                    typeof (serverConfig as any).initializationTimeout === 'number'
+                                        ? (serverConfig as any).initializationTimeout
+                                        : undefined,
+                                timeout:
+                                    typeof (serverConfig as any).timeout === 'number'
+                                        ? (serverConfig as any).timeout
+                                        : undefined,
+                            }
+                            console.log(`[migrateConfigToAgent] Added server ${name} to serverConfigs`)
+                            logging.info(`Added server ${name} to serverConfigs`)
+                        }
+                    } else {
+                        console.log('[migrateConfigToAgent] No mcpServers found in config')
                     }
-                    logging.info(`Added server ${name} to serverConfigs`)
+                } else {
+                    console.log('[migrateConfigToAgent] Config file is empty')
                 }
+            } else {
+                console.log('[migrateConfigToAgent] Config file does not exist')
             }
+        } catch (err) {
+            console.error(`[migrateConfigToAgent] Failed to read MCP config file ${normalizedConfigPath}:`, err)
+            logging.warn(`Failed to read MCP config file ${normalizedConfigPath}: ${err}`)
         }
-    } catch (err) {
-        logging.warn(`Failed to read MCP config file ${normalizedConfigPath}: ${err}`)
-    }
 
-    // Read persona config directly from file
-    let personaConfig: any = { mcpServers: [], toolPerms: {} }
-    try {
-        const personaExists = await workspace.fs.exists(normalizedPersonaPath)
+        // Read persona config directly from file
+        console.log('[migrateConfigToAgent] Reading persona config')
+        let personaConfig: any = { mcpServers: [], toolPerms: {} }
+        try {
+            console.log(`[migrateConfigToAgent] Checking persona file existence: ${normalizedPersonaPath}`)
+            const personaExists = await workspace.fs.exists(normalizedPersonaPath)
+            console.log(`[migrateConfigToAgent] Persona exists: ${personaExists}`)
 
-        if (personaExists) {
-            const raw = (await workspace.fs.readFile(normalizedPersonaPath)).toString().trim()
-            if (raw) {
-                const config = JSON.parse(raw)
-                if (config.mcpServers || config.toolPerms) {
-                    personaConfig = config
+            if (personaExists) {
+                console.log(`[migrateConfigToAgent] Reading persona file: ${normalizedPersonaPath}`)
+                const raw = (await workspace.fs.readFile(normalizedPersonaPath)).toString().trim()
+                console.log(`[migrateConfigToAgent] Persona file content length: ${raw.length}`)
+
+                if (raw) {
+                    console.log('[migrateConfigToAgent] Parsing persona JSON')
+                    const config = JSON.parse(raw)
+                    console.log('[migrateConfigToAgent] Persona parsed successfully')
+
+                    if (config.mcpServers || config.toolPerms) {
+                        personaConfig = config
+                        console.log('[migrateConfigToAgent] Using persona config')
+                    } else {
+                        console.log('[migrateConfigToAgent] No relevant persona config found, using defaults')
+                    }
+                } else {
+                    console.log('[migrateConfigToAgent] Persona file is empty')
                 }
+            } else {
+                console.log('[migrateConfigToAgent] Persona file does not exist, using defaults')
             }
+        } catch (err) {
+            console.error(`[migrateConfigToAgent] Failed to read persona config at ${normalizedPersonaPath}:`, err)
+            logging.warn(`Failed to read persona config at ${normalizedPersonaPath}: ${err}`)
         }
-    } catch (err) {
-        logging.warn(`Failed to read persona config at ${normalizedPersonaPath}: ${err}`)
-    }
 
-    // Convert to agent config
-    const agentConfig = convertPersonaToAgent(personaConfig, serverConfigs, agent)
+        // Convert to agent config
+        console.log('[migrateConfigToAgent] Converting persona to agent config')
+        const agentConfig = convertPersonaToAgent(personaConfig, serverConfigs, agent)
+        console.log('[migrateConfigToAgent] Conversion completed')
 
-    // Parse default values from DEFAULT_AGENT_RAW
-    const defaultAgent = JSON.parse(DEFAULT_AGENT_RAW)
+        // Parse default values from DEFAULT_AGENT_RAW
+        console.log('[migrateConfigToAgent] Parsing default agent values')
+        const defaultAgent = JSON.parse(DEFAULT_AGENT_RAW)
+        console.log('[migrateConfigToAgent] Default agent parsed')
 
-    // Add complete agent format sections using default values
-    agentConfig.name = defaultAgent.name
-    agentConfig.description = defaultAgent.description
-    agentConfig.includedFiles = defaultAgent.includedFiles
-    agentConfig.resources = defaultAgent.resources
-    agentConfig.createHooks = defaultAgent.createHooks
-    agentConfig.promptHooks = defaultAgent.promptHooks
+        // Add complete agent format sections using default values
+        console.log('[migrateConfigToAgent] Adding default agent properties')
+        agentConfig.name = defaultAgent.name
+        agentConfig.description = defaultAgent.description
+        agentConfig.includedFiles = defaultAgent.includedFiles
+        agentConfig.resources = defaultAgent.resources
+        agentConfig.createHooks = defaultAgent.createHooks
+        agentConfig.promptHooks = defaultAgent.promptHooks
+        console.log('[migrateConfigToAgent] Default properties added')
 
-    // Save agent config
-    try {
-        await saveAgentConfig(workspace, logging, agentConfig, agentPath)
-        logging.info(`Successfully created agent config at ${agentPath}`)
-    } catch (err) {
-        logging.error(`Failed to save agent config to ${agentPath}: ${err}`)
-        throw err
+        // Save agent config
+        console.log('[migrateConfigToAgent] Saving agent config')
+        try {
+            await saveAgentConfig(workspace, logging, agentConfig, agentPath)
+            console.log(`[migrateConfigToAgent] Successfully created agent config at ${agentPath}`)
+            logging.info(`Successfully created agent config at ${agentPath}`)
+        } catch (err) {
+            console.error(`[migrateConfigToAgent] Failed to save agent config to ${agentPath}:`, err)
+            logging.error(`Failed to save agent config to ${agentPath}: ${err}`)
+            throw err
+        }
+
+        console.log('[migrateConfigToAgent] Config migration completed successfully')
+    } catch (error) {
+        console.error('[migrateConfigToAgent] Config migration failed:', error)
+        throw error
     }
 }
 
