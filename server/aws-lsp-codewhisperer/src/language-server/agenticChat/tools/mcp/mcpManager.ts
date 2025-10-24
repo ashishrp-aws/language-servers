@@ -386,6 +386,19 @@ export class McpManager {
                             this.features.logging.info(`MCP: HEAD not available`)
                         }
 
+                        // If HEAD didn't detect OAuth, try GET as fallback
+                        if (!needsOAuth) {
+                            try {
+                                const getResp = await fetch(base, { method: 'GET', headers })
+                                needsOAuth = getResp.status === 401 || getResp.status === 403
+                                if (needsOAuth) {
+                                    this.features.logging.info(`MCP: OAuth detected via GET fallback`)
+                                }
+                            } catch {
+                                this.features.logging.debug(`MCP: GET fallback check failed`)
+                            }
+                        }
+
                         if (needsOAuth) {
                             OAuthClient.initialize(this.features.workspace, this.features.logging, this.features.lsp)
                             try {
