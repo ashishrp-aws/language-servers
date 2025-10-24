@@ -308,12 +308,20 @@ export class OAuthClient {
         rs: URL,
         refresh: string
     ): Promise<Token | undefined> {
-        const form = new URLSearchParams({
+        const isAzure = this.isAzureEntraId(meta)
+        const params: Record<string, string> = {
             grant_type: 'refresh_token',
             refresh_token: refresh,
             client_id: reg.client_id,
-            resource: rs.toString(),
-        })
+        }
+        // Azure Entra ID doesn't support 'resource' parameter
+        if (!isAzure) {
+            params.resource = rs.toString()
+        }
+        this.logger.info(
+            `OAuth: refresh grant ${isAzure ? '(Azure Entra ID - omitting resource param)' : '(including resource param)'})`
+        )
+        const form = new URLSearchParams(params)
         const res = await this.fetchCompat(meta.token_endpoint, {
             method: 'POST',
             headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -338,6 +346,9 @@ export class OAuthClient {
         server: http.Server
     ): Promise<Token> {
         const DEFAULT_PKCE_TIMEOUT_MS = 90_000
+        const isAzure = this.isAzureEntraId(meta)
+        this.logger.info(`OAuth: starting PKCE flow ${isAzure ? '(Azure Entra ID detected)' : '(standard OAuth)'}`)
+
         // a) generate PKCE params
         const verifier = this.b64url(crypto.randomBytes(32))
         const challenge = this.b64url(crypto.createHash('sha256').update(verifier).digest())
@@ -345,16 +356,23 @@ export class OAuthClient {
 
         // b) build authorize URL + launch browser
         const authz = new URL(meta.authorization_endpoint)
-        authz.search = new URLSearchParams({
+        const authParams: Record<string, string> = {
             client_id: reg.client_id,
             response_type: 'code',
             code_challenge: challenge,
             code_challenge_method: 'S256',
-            resource: rs.toString(),
             scope: scopes.join(' '),
             redirect_uri: redirectUri,
             state: state,
-        }).toString()
+        }
+        // Azure Entra ID doesn't support 'resource' parameter
+        if (!isAzure) {
+            authParams.resource = rs.toString()
+            this.logger.info(`OAuth: including resource parameter: ${rs.toString()}`)
+        } else {
+            this.logger.info(`OAuth: omitting resource parameter for Azure Entra ID`)
+        }
+        authz.search = new URLSearchParams(authParams).toString()
 
         await this.lsp.window.showDocument({ uri: authz.toString(), external: true })
 
@@ -382,14 +400,21 @@ export class OAuthClient {
         if (!code || rxState !== state) throw new Error('Invalid authorization response (state mismatch)')
 
         // d) exchange code for token
-        const form2 = new URLSearchParams({
+        const tokenParams: Record<string, string> = {
             grant_type: 'authorization_code',
             code,
             code_verifier: verifier,
             client_id: reg.client_id,
             redirect_uri: redirectUri,
-            resource: rs.toString(),
-        })
+        }
+        // Azure Entra ID doesn't support 'resource' parameter
+        if (!isAzure) {
+            tokenParams.resource = rs.toString()
+        }
+        this.logger.info(
+            `OAuth: exchanging code for token ${isAzure ? '(Azure Entra ID - omitting resource param)' : '(including resource param)'})`
+        )
+        const form2 = new URLSearchParams(tokenParams)
         const res2 = await this.fetchCompat(meta.token_endpoint, {
             method: 'POST',
             headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -442,6 +467,25 @@ export class OAuthClient {
     /** RFC‑7636 base64url without padding */
     private static b64url(buf: Buffer): string {
         return buf.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+    }
+
+    /** Detect if the OAuth provider is Azure Entra ID */
+    private static isAzureEntraId(meta: Meta): boolean {
+        const isAzure =
+            meta.authorization_endpoint.includes('login.microsoftonline.com') ||
+            meta.authorization_endpoint.includes('login.microsoftonline.us') ||
+            meta.authorization_endpoint.includes('login.partner.microsoftonline.cn') ||
+            meta.authorization_endpoint.includes('login.windows.net') ||
+            meta.token_endpoint.includes('login.microsoftonline.com') ||
+            meta.token_endpoint.includes('login.microsoftonline.us') ||
+            meta.token_endpoint.includes('login.partner.microsoftonline.cn') ||
+            meta.token_endpoint.includes('login.windows.net')
+        if (isAzure) {
+            this.logger.info(
+                `OAuth: Azure Entra ID detected (auth: ${meta.authorization_endpoint}, token: ${meta.token_endpoint})`
+            )
+        }
+        return isAzure
     }
 
     /** Directory for caching registration + tokens */
