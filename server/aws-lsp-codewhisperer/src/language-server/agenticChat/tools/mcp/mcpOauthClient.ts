@@ -49,7 +49,7 @@ export class OAuthClient {
      */
     public static async getValidAccessToken(
         mcpBase: URL,
-        opts: { interactive?: boolean } = { interactive: false }
+        opts: { interactive?: boolean; clientId?: string } = { interactive: false }
     ): Promise<string | undefined> {
         const interactive = opts?.interactive === true
         const key = this.computeKey(mcpBase)
@@ -149,7 +149,7 @@ export class OAuthClient {
             const scopes = ['openid', 'offline_access']
             let reg: Registration
             try {
-                reg = await this.obtainClient(meta, regPath, scopes, redirectUri)
+                reg = await this.obtainClient(meta, regPath, scopes, redirectUri, opts.clientId)
             } catch (e: any) {
                 throw new Error(`OAuth client registration failed: ${e?.message ?? String(e)}`)
             }
@@ -265,7 +265,8 @@ export class OAuthClient {
         meta: Meta,
         file: string,
         scopes: string[],
-        redirectUri: string
+        redirectUri: string,
+        preConfiguredClientId?: string
     ): Promise<Registration> {
         const existing = await this.read<Registration>(file)
         if (existing && (!existing.expires_at || existing.expires_at * 1000 > Date.now())) {
@@ -273,8 +274,22 @@ export class OAuthClient {
             return existing
         }
 
+        // If a pre-configured client ID is provided, use it (for Azure Entra ID, etc.)
+        if (preConfiguredClientId) {
+            this.logger.info(`OAuth: using pre-configured client_id ${preConfiguredClientId}`)
+            const reg: Registration = {
+                client_id: preConfiguredClientId,
+                redirect_uri: redirectUri,
+            }
+            await this.write(file, reg)
+            return reg
+        }
+
         if (!meta.registration_endpoint) {
-            throw new Error('OAuth: AS does not support dynamic registration')
+            throw new Error(
+                'OAuth: AS does not support dynamic registration. ' +
+                    'For Azure Entra ID, add "headers": {"X-OAuth-Client-Id": "YOUR_AZURE_APP_CLIENT_ID"} to your MCP server configuration.'
+            )
         }
 
         const body = {

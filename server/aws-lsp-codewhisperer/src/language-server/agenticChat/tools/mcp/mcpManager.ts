@@ -390,8 +390,13 @@ export class McpManager {
                     // streamable http/SSE transport
                     const base = new URL(cfg.url!)
                     try {
+                        // Extract and remove X-OAuth-Client-Id from headers before any usage (for Azure Entra ID, etc.)
+                        const allHeaders: Record<string, string> = { ...(cfg.headers ?? {}) }
+                        const clientId = allHeaders['X-OAuth-Client-Id'] || allHeaders['x-oauth-client-id']
+                        const { 'X-OAuth-Client-Id': _, 'x-oauth-client-id': __, ...cleanHeaders } = allHeaders
+                        let headers = cleanHeaders
+
                         // Use HEAD to check if it needs OAuth
-                        let headers: Record<string, string> = { ...(cfg.headers ?? {}) }
                         let needsOAuth = false
                         try {
                             const headResp = await fetch(base, { method: 'HEAD', headers })
@@ -419,6 +424,7 @@ export class McpManager {
                             try {
                                 const bearer = await OAuthClient.getValidAccessToken(base, {
                                     interactive: authIntent === AuthIntent.Interactive,
+                                    clientId,
                                 })
                                 if (bearer) {
                                     headers = { ...headers, Authorization: `Bearer ${bearer}` }
