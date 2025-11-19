@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.0.91](https://github.com/aws/language-servers/compare/lsp-codewhisperer/v0.0.90...lsp-codewhisperer/v0.0.91) (2025-11-18)
+
+
+### Bug Fixes
+
+* **amazonq:** handle large results ([#2497](https://github.com/aws/language-servers/issues/2497)) ([b3efa7c](https://github.com/aws/language-servers/commit/b3efa7cff0b23608dd0cca796c9c95a672c9321a))
+* resolve broken error handling in setPaidTierMode ([#2500](https://github.com/aws/language-servers/issues/2500)) ([8ccb067](https://github.com/aws/language-servers/commit/8ccb06768c4a386b0a4699d8b2e299f0aad110b1))
+
+## [0.0.90](https://github.com/aws/language-servers/compare/lsp-codewhisperer/v0.0.89...lsp-codewhisperer/v0.0.90) (2025-11-13)
+
+
+### Bug Fixes
+
+* bearer client will not pick up telemetry optout and its always optout ([#2484](https://github.com/aws/language-servers/issues/2484)) ([ec6771f](https://github.com/aws/language-servers/commit/ec6771fc5dc162f9c65df4e979dcfc3ae4838f06))
+
+## [0.0.89](https://github.com/aws/language-servers/compare/lsp-codewhisperer/v0.0.88...lsp-codewhisperer/v0.0.89) (2025-11-12)
+
+
+### Features
+
+* ab test setup for new repomap strategy ([#2474](https://github.com/aws/language-servers/issues/2474)) ([d28867f](https://github.com/aws/language-servers/commit/d28867f2a5e06693b83d0cfd0286f017cdc5e5b3))
+* differentiate implicit and explicit reject for inline completion ([#2475](https://github.com/aws/language-servers/issues/2475)) ([4b68eea](https://github.com/aws/language-servers/commit/4b68eea03374db79b8ad728aa048b623de8efa91))
+
+
+### Bug Fixes
+
+* McpManager not initialized error ([#2479](https://github.com/aws/language-servers/issues/2479)) ([7e2707b](https://github.com/aws/language-servers/commit/7e2707b8c2b4467aae1fe1c77bb419043e193ddc))
+
+## [0.0.88](https://github.com/aws/language-servers/compare/lsp-codewhisperer/v0.0.87...lsp-codewhisperer/v0.0.88) (2025-10-28)
+
+
+### Bug Fixes
+
+* add venv in the common gitignore patterns ([#2445](https://github.com/aws/language-servers/issues/2445)) ([d030288](https://github.com/aws/language-servers/commit/d030288a2508356db337dfa34ee64c8be1deb8e9))
+* enforce MAX_TOOL_NAME_LENGTH check in createNamespacedToolName ([#2447](https://github.com/aws/language-servers/issues/2447)) ([6663f87](https://github.com/aws/language-servers/commit/6663f87e68c9645af6ffb004eaf725e5102fe5ab))
+* strenghen NEP trigger conditions ([#2438](https://github.com/aws/language-servers/issues/2438)) ([82e2340](https://github.com/aws/language-servers/commit/82e2340cf86a5eba20f8d18f1293c136c0022dd9))
+
 ## [0.0.87](https://github.com/aws/language-servers/compare/lsp-codewhisperer/v0.0.86...lsp-codewhisperer/v0.0.87) (2025-10-21)
 
 

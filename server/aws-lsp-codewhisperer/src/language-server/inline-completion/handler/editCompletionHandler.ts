@@ -22,7 +22,7 @@ import { CodeWhispererSession, SessionManager } from '../session/sessionManager'
 import { CursorTracker } from '../tracker/cursorTracker'
 import { CodewhispererLanguage, getSupportedLanguageId } from '../../../shared/languageDetection'
 import { WorkspaceFolderManager } from '../../workspaceContext/workspaceFolderManager'
-import { inferTriggerChar } from '../utils/triggerUtils'
+import { inferTriggerChar, shouldTriggerEdits } from '../utils/triggerUtils'
 import {
     emitEmptyUserTriggerDecisionTelemetry,
     emitServiceInvocationFailure,
@@ -38,6 +38,7 @@ import { AmazonQError, AmazonQServiceConnectionExpiredError } from '../../../sha
 import { DocumentChangedListener } from '../documentChangedListener'
 import { EMPTY_RESULT } from '../contants/constants'
 import { StreakTracker } from '../tracker/streakTracker'
+import { UserDecisionReason } from '@amzn/codewhisperer-runtime'
 import { processEditSuggestion } from '../utils/diffUtils'
 import { EditClassifier } from '../auto-trigger/editPredictionAutoTrigger'
 
@@ -212,6 +213,8 @@ export class EditCompletionHandler {
         const workspaceId = workspaceState?.webSocketClient?.isConnected() ? workspaceState.workspaceId : undefined
 
         const recentEdits = await this.recentEditsTracker.generateEditBasedContext(textDocument)
+
+        // TODO: Refactor and merge these 2 shouldTrigger into single one
         const classifier = new EditClassifier(
             {
                 fileContext: fileContextClss,
@@ -221,10 +224,22 @@ export class EditCompletionHandler {
             },
             this.logging
         )
+        const classifierBasedTrigger = classifier.shouldTriggerEdits()
 
-        const qEditsTrigger = classifier.shouldTriggerNep()
+        const ruleBasedTrigger = shouldTriggerEdits(
+            this.codeWhispererService,
+            fileContextClss.toServiceModel(),
+            params,
+            this.cursorTracker,
+            this.recentEditsTracker,
+            this.sessionManager,
+            true
+        )
 
-        if (!qEditsTrigger.shouldTrigger) {
+        // Both classifier and rule based conditions need to evaluate to true otherwise we wont fire Edits requests
+        const shouldFire = classifierBasedTrigger.shouldTrigger && ruleBasedTrigger !== undefined
+
+        if (!shouldFire) {
             return EMPTY_RESULT
         }
 
@@ -270,6 +285,7 @@ export class EditCompletionHandler {
         // Close ACTIVE session and record Discard trigger decision immediately
         if (currentSession && currentSession.state === 'ACTIVE') {
             // Emit user trigger decision at session close time for active session
+            // This is a discard, no userDecisionReason needed
             this.sessionManager.discardSession(currentSession)
             const streakLength = this.editsEnabled ? this.streakTracker.getAndUpdateStreakLength(false) : 0
             await emitUserTriggerDecisionTelemetry(
@@ -282,6 +298,7 @@ export class EditCompletionHandler {
                 [],
                 [],
                 streakLength
+                // No itemId, no userDecisionReason
             )
         }
 
@@ -344,6 +361,7 @@ export class EditCompletionHandler {
             session.discardInflightSessionOnNewInvocation = false
             this.sessionManager.discardSession(session)
             const streakLength = this.editsEnabled ? this.streakTracker.getAndUpdateStreakLength(false) : 0
+            // This is a discard, no userDecisionReason needed
             await emitUserTriggerDecisionTelemetry(
                 this.telemetry,
                 this.telemetryService,
@@ -354,6 +372,7 @@ export class EditCompletionHandler {
                 [],
                 [],
                 streakLength
+                // No itemId, no userDecisionReason
             )
         }
 
