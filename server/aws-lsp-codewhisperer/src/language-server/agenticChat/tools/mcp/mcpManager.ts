@@ -553,19 +553,81 @@ export class McpManager {
             this.clients.set(serverName, client)
             this.mcpTools = this.mcpTools.filter(t => t.serverName !== serverName)
 
-            const resp = (await client.listTools()) as ListToolsResponse
+            let resp: ListToolsResponse
+            try {
+                resp = (await client.listTools()) as ListToolsResponse
+            } catch (listToolsError: any) {
+                if (listToolsError.message?.includes("can't resolve reference")) {
+                    this.features.logging.warn(
+                        `MCP: server [${serverName}] has schema validation issues, bypassing validation`
+                    )
+
+                    // TEMPORARY WORKAROUND: MCP SDK v1.22.0 (AJV v8) is stricter than v1.19.1 (AJV v6)
+                    // This causes AWS MCP servers to fail schema validation. Remove when SDK is fixed.
+                    // Bypass schema validation by making raw request
+                    try {
+                        const rawRequest = {
+                            jsonrpc: '2.0',
+                            id: Date.now(),
+                            method: 'tools/list',
+                            params: {},
+                        }
+
+                        // Access the transport directly to send raw request
+                        const transport = (client as any).transport
+                        if (transport) {
+                            const rawResp = await new Promise((resolve, reject) => {
+                                const timeout = setTimeout(() => reject(new Error('Timeout')), 30000)
+                                const handleMessage = (message: any) => {
+                                    if (message.id === rawRequest.id) {
+                                        clearTimeout(timeout)
+                                        if (message.error) {
+                                            reject(new Error(message.error.message))
+                                        } else {
+                                            resolve(message.result)
+                                        }
+                                    }
+                                }
+                                transport.onmessage = handleMessage
+                                transport.send(rawRequest)
+                            })
+
+                            resp = rawResp as ListToolsResponse
+                            this.features.logging.info(
+                                `MCP: server [${serverName}] successfully loaded ${resp.tools.length} tools bypassing validation`
+                            )
+                        } else {
+                            throw new Error('No transport available')
+                        }
+                    } catch (rawError: any) {
+                        this.features.logging.error(
+                            `MCP: raw request also failed for [${serverName}]: ${rawError.message}`
+                        )
+                        resp = { tools: [] }
+                    }
+                } else {
+                    throw listToolsError
+                }
+            }
             for (const t of resp.tools) {
                 if (!t.name) {
                     this.features.logging.warn(`MCP: server [${serverName}] returned tool with no name, skipping`)
                     continue
                 }
-                this.features.logging.info(`MCP: discovered tool ${serverName}::${t.name}`)
-                this.mcpTools.push({
-                    serverName,
-                    toolName: t.name,
-                    description: sanitizeInput(t.description ?? ''),
-                    inputSchema: t.inputSchema ?? {},
-                })
+                try {
+                    this.features.logging.info(`MCP: discovered tool ${serverName}::${t.name}`)
+                    this.mcpTools.push({
+                        serverName,
+                        toolName: t.name,
+                        description: sanitizeInput(t.description ?? ''),
+                        inputSchema: t.inputSchema ?? {},
+                    })
+                } catch (schemaError: any) {
+                    this.features.logging.warn(
+                        `MCP: server [${serverName}] tool '${t.name}' has invalid schema, skipping: ${schemaError.message}`
+                    )
+                    continue
+                }
             }
 
             // Cache version for registry servers
