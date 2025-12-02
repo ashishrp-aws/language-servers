@@ -455,11 +455,10 @@ export class McpManager {
                         const allHeaders: Record<string, string> = { ...(cfg.headers ?? {}) }
                         const clientId = allHeaders['X-OAuth-Client-Id'] || allHeaders['x-oauth-client-id']
                         const { 'X-OAuth-Client-Id': _, 'x-oauth-client-id': __, ...cleanHeaders } = allHeaders
-                        let headers = cleanHeaders
 
                         // Use HEAD to check if it needs OAuth
                         let headers: Record<string, string> = {
-                            ...(cfg.headers ?? {}),
+                            ...(cleanHeaders ?? {}),
                             ...(cfg.__additionalHeaders__ ?? {}),
                         }
                         let needsOAuth = false
