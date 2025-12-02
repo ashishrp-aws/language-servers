@@ -49,7 +49,7 @@ export class OAuthClient {
      */
     public static async getValidAccessToken(
         mcpBase: URL,
-        opts: { interactive?: boolean; clientId?: string } = { interactive: false }
+        opts: { interactive?: boolean; clientId?: string; redirectUri?: string } = { interactive: false }
     ): Promise<string | undefined> {
         const interactive = opts?.interactive === true
         const key = this.computeKey(mcpBase)
@@ -94,35 +94,51 @@ export class OAuthClient {
         // 1) Spin up (or reuse) loopback server + redirect URI
         let server: http.Server | null = null
         let redirectUri: string
-        const savedReg = await this.read<Registration>(regPath)
-        if (savedReg) {
-            const port = Number(new URL(savedReg.redirect_uri).port)
-            const normalized = `http://127.0.0.1:${port}`
+
+        // Use custom redirect URI if provided (for Azure Entra ID pre-registered apps)
+        if (opts.redirectUri) {
+            redirectUri = opts.redirectUri
+            const url = new URL(redirectUri)
+            const port = Number(url.port)
             server = http.createServer()
             try {
-                await this.listen(server, port, '127.0.0.1')
-                redirectUri = normalized
-                this.logger.info(`OAuth: reusing redirect URI ${redirectUri}`)
+                await this.listen(server, port, url.hostname)
+                this.logger.info(`OAuth: using custom redirect URI ${redirectUri}`)
             } catch (e: any) {
-                if (e.code === 'EADDRINUSE') {
-                    try {
-                        server.close()
-                    } catch {
-                        /* ignore */
-                    }
-                    this.logger.warn(`Port ${port} in use; falling back to new random port`)
-                    ;({ server, redirectUri } = await this.buildCallbackServer())
-                    this.logger.info(`OAuth: new redirect URI ${redirectUri}`)
-                    await this.workspace.fs.rm(regPath)
-                } else {
-                    throw e
-                }
+                throw new Error(`Failed to bind to custom redirect URI ${redirectUri}: ${e.message}`)
             }
         } else {
-            const created = await this.buildCallbackServer()
-            server = created.server
-            redirectUri = created.redirectUri
-            this.logger.info(`OAuth: new redirect URI ${redirectUri}`)
+            // Use dynamic redirect URI (existing behavior)
+            const savedReg = await this.read<Registration>(regPath)
+            if (savedReg) {
+                const port = Number(new URL(savedReg.redirect_uri).port)
+                const normalized = `http://127.0.0.1:${port}`
+                server = http.createServer()
+                try {
+                    await this.listen(server, port, '127.0.0.1')
+                    redirectUri = normalized
+                    this.logger.info(`OAuth: reusing redirect URI ${redirectUri}`)
+                } catch (e: any) {
+                    if (e.code === 'EADDRINUSE') {
+                        try {
+                            server.close()
+                        } catch {
+                            /* ignore */
+                        }
+                        this.logger.warn(`Port ${port} in use; falling back to new random port`)
+                        ;({ server, redirectUri } = await this.buildCallbackServer())
+                        this.logger.info(`OAuth: new redirect URI ${redirectUri}`)
+                        await this.workspace.fs.rm(regPath)
+                    } else {
+                        throw e
+                    }
+                }
+            } else {
+                const created = await this.buildCallbackServer()
+                server = created.server
+                redirectUri = created.redirectUri
+                this.logger.info(`OAuth: new redirect URI ${redirectUri}`)
+            }
         }
 
         try {

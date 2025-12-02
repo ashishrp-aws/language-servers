@@ -451,10 +451,17 @@ export class McpManager {
                     // streamable http/SSE transport - merge additional headers with base headers
                     const base = new URL(cfg.url!)
                     try {
-                        // Extract and remove X-OAuth-Client-Id from headers before any usage (for Azure Entra ID, etc.)
+                        // Extract and remove OAuth-specific headers before any usage (for Azure Entra ID, etc.)
                         const allHeaders: Record<string, string> = { ...(cfg.headers ?? {}) }
                         const clientId = allHeaders['X-OAuth-Client-Id'] || allHeaders['x-oauth-client-id']
-                        const { 'X-OAuth-Client-Id': _, 'x-oauth-client-id': __, ...cleanHeaders } = allHeaders
+                        const redirectUri = allHeaders['X-OAuth-Redirect-URI'] || allHeaders['x-oauth-redirect-uri']
+                        const {
+                            'X-OAuth-Client-Id': _,
+                            'x-oauth-client-id': __,
+                            'X-OAuth-Redirect-URI': ___,
+                            'x-oauth-redirect-uri': ____,
+                            ...cleanHeaders
+                        } = allHeaders
 
                         // Use HEAD to check if it needs OAuth
                         let headers: Record<string, string> = {
@@ -489,6 +496,7 @@ export class McpManager {
                                 const bearer = await OAuthClient.getValidAccessToken(base, {
                                     interactive: authIntent === AuthIntent.Interactive,
                                     clientId,
+                                    redirectUri,
                                 })
                                 if (bearer) {
                                     headers = { ...headers, Authorization: `Bearer ${bearer}` }

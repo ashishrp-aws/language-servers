@@ -1,89 +1,144 @@
-# Azure Entra ID OAuth Support Fix
+# Azure Entra ID OAuth Configuration for MCP Servers
+
+This document explains how to configure MCP servers to work with Azure Entra ID OAuth authentication.
 
 ## Problem
-Customer reported error when authenticating with Azure Entra ID:
-```
-AADSTS700016: Application with identifier 'dc-ntmmp1xkvnithy5axnpdxwpc5' was not found in the directory 'TIAA'
-```
 
-**Root Cause**: Azure Entra ID doesn't support Dynamic Client Registration (DCR). The code was attempting DCR and generating a random client ID that doesn't exist in the customer's Azure tenant.
+Azure Entra ID has specific requirements that differ from standard OAuth implementations:
+
+1. **No Dynamic Client Registration (DCR)**: Azure Entra ID doesn't support automatic client registration
+2. **Pre-registered Redirect URIs**: All redirect URIs must be registered in advance in the Azure App registration
+3. **No `resource` parameter**: Azure uses `scope` instead of the OAuth 2.0 `resource` parameter
 
 ## Solution
-Allow users to provide a pre-registered Azure App client ID via the existing `headers` field in their MCP server configuration.
 
-## Changes Made
+Use pre-registered Azure App credentials and redirect URIs in your MCP server configuration.
 
-### 1. Updated `OAuthClient.getValidAccessToken`
-**File**: `server/aws-lsp-codewhisperer/src/language-server/agenticChat/tools/mcp/mcpOauthClient.ts`
+## Setup Steps
 
-- Added `clientId` parameter to options
-- Pass `clientId` to `obtainClient` method
+### 1. Register an Azure App
 
-### 2. Updated `OAuthClient.obtainClient`
-**File**: `server/aws-lsp-codewhisperer/src/language-server/agenticChat/tools/mcp/mcpOauthClient.ts`
+1. Go to [Azure Portal](https://portal.azure.com) → Azure Active Directory → App registrations
+2. Click "New registration"
+3. Configure:
+   - **Name**: Choose a descriptive name (e.g., "MCP Server Access")
+   - **Supported account types**: Choose appropriate option for your organization
+   - **Redirect URI**: Add `http://127.0.0.1:8080` (or your preferred port)
+4. Click "Register"
+5. Note the **Application (client) ID** from the Overview page
 
-- Added `preConfiguredClientId` parameter
-- If provided, skip DCR and use the pre-configured client ID
-- Updated error message to guide users on configuration
+### 2. Configure Redirect URIs
 
-### 3. Updated `McpManager.initOneServer`
-**File**: `server/aws-lsp-codewhisperer/src/language-server/agenticChat/tools/mcp/mcpManager.ts`
+1. In your Azure App registration, go to **Authentication**
+2. Under "Redirect URIs", add:
+   - `http://127.0.0.1:8080` (or your chosen port)
+   - Optionally add other ports like `http://127.0.0.1:8081`, `http://127.0.0.1:8082` for flexibility
+3. Under "Advanced settings":
+   - Enable "Allow public client flows" if needed
+   - Configure other settings as required by your organization
+4. Click "Save"
 
-- Extract `X-OAuth-Client-Id` header from `cfg.headers`
-- Pass extracted `clientId` to `OAuthClient.getValidAccessToken`
+### 3. Configure MCP Server
 
-## Customer Configuration
-
-For Azure Entra ID (or any OAuth provider without DCR support), users should:
-
-### 1. Register an App in Azure Entra ID
-- Go to Azure Portal → Azure Active Directory → App registrations
-- Create a new registration
-- Add redirect URI: `http://127.0.0.1` (with any port, e.g., `http://127.0.0.1:41877`)
-- Note the Application (client) ID
-
-### 2. Update MCP Server Configuration
-Add the `X-OAuth-Client-Id` header to the MCP server configuration in `~/.aws/amazonq/agents/default.json`:
+Add the Azure App credentials to your MCP server configuration in `~/.aws/amazonq/agents/default.json`:
 
 ```json
 {
   "mcpServers": {
     "my-azure-server": {
-      "url": "https://your-mcp-server.com",
+      "url": "https://your-mcp-server.example.com",
       "headers": {
-        "X-OAuth-Client-Id": "YOUR_AZURE_APP_CLIENT_ID"
+        "X-OAuth-Client-Id": "your-azure-app-client-id-here",
+        "X-OAuth-Redirect-URI": "http://127.0.0.1:8080"
       }
     }
   }
 }
 ```
 
-## Error Messages
+## Configuration Options
 
-### Before Fix
+### Required Headers
+
+- **`X-OAuth-Client-Id`**: Your Azure App's Application (client) ID
+- **`X-OAuth-Redirect-URI`**: The redirect URI registered in your Azure App (must match exactly)
+
+### Example Configurations
+
+#### Basic Configuration
+```json
+{
+  "mcpServers": {
+    "azure-mcp": {
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "X-OAuth-Client-Id": "12345678-1234-1234-1234-123456789012",
+        "X-OAuth-Redirect-URI": "http://127.0.0.1:8080"
+      }
+    }
+  }
+}
 ```
-OAuth: AS does not support dynamic registration
+
+#### With Custom Port
+```json
+{
+  "mcpServers": {
+    "azure-mcp": {
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "X-OAuth-Client-Id": "12345678-1234-1234-1234-123456789012",
+        "X-OAuth-Redirect-URI": "http://127.0.0.1:9000"
+      }
+    }
+  }
+}
 ```
 
-### After Fix
-```
-OAuth: AS does not support dynamic registration. For Azure Entra ID, add "headers": {"X-OAuth-Client-Id": "YOUR_AZURE_APP_CLIENT_ID"} to your MCP server configuration.
-```
+## Important Notes
 
-## Testing
+1. **Exact Match Required**: The `X-OAuth-Redirect-URI` must exactly match one of the redirect URIs registered in your Azure App
+2. **Port Availability**: Ensure the port specified in the redirect URI is available when Amazon Q attempts OAuth authentication
+3. **Firewall**: Make sure your firewall allows connections to the specified port
+4. **Case Sensitivity**: Header names are case-insensitive, so `x-oauth-client-id` works the same as `X-OAuth-Client-Id`
 
-1. Configure an MCP server with Azure Entra ID OAuth
-2. Add the `X-OAuth-Client-Id` header with a valid Azure App client ID
-3. Verify authentication succeeds without DCR errors
-4. Verify the client ID is cached and reused on subsequent authentications
+## Troubleshooting
 
-## Benefits of Headers Approach
+### Common Errors
 
-- Reuses existing `headers` field infrastructure
-- No new config schema changes needed
-- Consistent with how other metadata is passed (e.g., Authorization headers)
-- The `X-OAuth-Client-Id` header is only used internally for OAuth setup, not sent to the MCP server
+#### `AADSTS50011: The redirect URI does not match`
+- **Cause**: The redirect URI in your configuration doesn't match what's registered in Azure
+- **Solution**: Verify the redirect URI in your Azure App registration matches exactly what you specified in `X-OAuth-Redirect-URI`
 
-## Related Ticket
-- Ticket: V1947019868
-- Customer: Presidio Networked Solutions Group, LLC (Account: 054037099556)
+#### `AADSTS700016: Application with identifier 'xxx' was not found`
+- **Cause**: The client ID is incorrect or the app isn't registered in the correct tenant
+- **Solution**: Verify the `X-OAuth-Client-Id` matches your Azure App's Application (client) ID
+
+#### `Failed to bind to custom redirect URI`
+- **Cause**: The port specified in the redirect URI is already in use or blocked
+- **Solution**: Choose a different port and update both your Azure App registration and MCP configuration
+
+### Verification Steps
+
+1. Check Azure App registration:
+   - Verify Application (client) ID
+   - Confirm redirect URI is registered
+   - Ensure "Allow public client flows" is enabled if needed
+
+2. Check MCP configuration:
+   - Verify `X-OAuth-Client-Id` matches Azure App ID
+   - Verify `X-OAuth-Redirect-URI` matches registered redirect URI exactly
+   - Check for typos in header names
+
+3. Check network:
+   - Ensure the specified port is available
+   - Verify firewall settings allow the port
+
+## Support
+
+If you continue to experience issues:
+
+1. Check Amazon Q logs for detailed error messages
+2. Verify your Azure App configuration
+3. Test with a simple redirect URI like `http://127.0.0.1:8080`
+4. Contact support with your configuration (redact sensitive information)
