@@ -30,6 +30,8 @@ import { ProfileStatusMonitor } from './mcp/profileStatusMonitor'
 import { AmazonQTokenServiceManager } from '../../../shared/amazonQServiceManager/AmazonQTokenServiceManager'
 import { SERVICE_MANAGER_TIMEOUT_MS, SERVICE_MANAGER_POLL_INTERVAL_MS } from '../constants/constants'
 import { isUsingIAMAuth } from '../../../shared/utils'
+import { WEB_SEARCH } from '../constants/toolConstants'
+import { WebFetch, WebFetchParams } from './webFetch'
 
 export const FsToolsServer: Server = ({ workspace, logging, agent, lsp }) => {
     const fsReadTool = new FsRead({ workspace, lsp, logging })
@@ -396,29 +398,64 @@ export const McpToolsServer: Server = ({
             // Initialize McpManager first, before profile monitor
             await initializeMcpManager()
 
+            const sendMcpUpdate = () => {
+                try {
+                    chat?.sendChatUpdate({
+                        tabId: 'mcpserver',
+                        data: {
+                            placeholderText: 'mcp-server-update',
+                            messages: [],
+                        },
+                    })
+                } catch (error) {
+                    logging.error(`Failed to send chatOptionsUpdate: ${error}`)
+                }
+            }
+
             profileStatusMonitor = new ProfileStatusMonitor(
                 logging,
-                removeAllMcpTools,
+                () => {
+                    logging.info('MCP configuration disabled - removing tools')
+                    // Clear registry errors when MCP is administratively disabled
+                    try {
+                        if (McpManager.instance) {
+                            McpManager.instance.configLoadErrors.clear()
+                        }
+                    } catch (error) {
+                        logging.debug('McpManager not initialized for clearing errors')
+                    }
+                    removeAllMcpTools()
+                },
                 async () => {
                     logging.info('MCP enabled by profile status monitor')
+                    // Don't clear registry errors when re-enabling MCP
+                    const existingErrors = McpManager.instance.getConfigLoadErrors()
                     await McpManager.instance.discoverAllServers()
+                    // Restore registry errors if they existed
+                    if (existingErrors && existingErrors.includes('MCP Registry:')) {
+                        McpManager.instance.configLoadErrors.set('registry', existingErrors)
+                    }
                     logging.info(`MCP: discovered ${McpManager.instance.getAllTools().length} tools after re-enable`)
                     registerAllMcpTools()
+                    sendMcpUpdate()
                 },
                 async (registryUrl: string | null, isPeriodicSync: boolean = false) => {
-                    if (registryUrl) {
-                        McpManager.instance.setRegistryActive(true)
-                        await McpManager.instance.reinitializeMcpServers(true)
-                        await McpManager.instance.updateRegistryUrl(registryUrl, isPeriodicSync)
-
-                        // Discover servers after registry update
-                        if (!isPeriodicSync) {
+                    try {
+                        if (registryUrl) {
+                            McpManager.instance.setRegistryActive(true)
+                            await McpManager.instance.updateRegistryUrl(registryUrl, isPeriodicSync)
+                            // Registry URL update handles server discovery internally
+                        } else {
+                            // No registry URL - ensure registry is not active and discover manual servers
+                            McpManager.instance.setRegistryActive(false)
                             await McpManager.instance.discoverAllServers()
-                            logging.info(
-                                `MCP: discovered ${McpManager.instance.getAllTools().length} tools after registry update`
-                            )
-                            registerAllMcpTools()
                         }
+                        sendMcpUpdate()
+                    } catch (error) {
+                        const errorMsg = error instanceof Error ? error.message : String(error)
+                        logging.error(`Registry URL update failed: ${errorMsg}`)
+                        // Error is already stored in McpManager.configLoadErrors by updateRegistryUrl
+                        sendMcpUpdate()
                     }
                 }
             )
@@ -426,14 +463,18 @@ export const McpToolsServer: Server = ({
             // Wait for profile ARN to be available before checking MCP state
             const checkAndInitialize = async () => {
                 try {
-                    await profileStatusMonitor!.checkInitialState()
-
-                    // Check if MCP is enabled via isMcpEnabled check
+                    // Check if MCP is enabled via isMcpEnabled check (only call once)
                     const mcpEnabled = await profileStatusMonitor!.checkInitialState()
 
                     if (mcpEnabled) {
                         logging.info('MCP is enabled, discovering servers')
+                        // Preserve any existing registry errors before discovering servers
+                        const existingErrors = McpManager.instance.getConfigLoadErrors()
                         await McpManager.instance.discoverAllServers()
+                        // Restore registry errors if they existed
+                        if (existingErrors && existingErrors.includes('MCP Registry:')) {
+                            McpManager.instance.configLoadErrors.set('registry', existingErrors)
+                        }
                         logging.info(
                             `MCP: discovered ${McpManager.instance.getAllTools().length} tools across all servers`
                         )
@@ -450,7 +491,7 @@ export const McpToolsServer: Server = ({
                     // Store registry errors in McpManager for display in server list
                     if (errorMsg.includes('MCP Registry:')) {
                         try {
-                            ;(McpManager.instance as any).configLoadErrors.set('registry', errorMsg)
+                            McpManager.instance.configLoadErrors.set('registry', errorMsg)
                         } catch (e) {
                             logging.debug('Failed to store registry error in McpManager')
                         }
@@ -514,4 +555,92 @@ export const McpToolsServer: Server = ({
         profileStatusMonitor?.stop()
         await McpManager.instance.close()
     }
+}
+
+export const WebToolsServer: Server = ({ logging, agent, lsp, runtime }) => {
+    const webFetchTool = new WebFetch({ logging, lsp, runtime })
+
+    // Add webFetch tool
+    agent.addTool(
+        webFetchTool.getSpec(),
+        async (input: WebFetchParams) => {
+            await webFetchTool.validate(input)
+            return await webFetchTool.invoke(input)
+        },
+        ToolClassification.BuiltIn
+    )
+    const discoverWebSearch = async () => {
+        const serviceManager = AmazonQTokenServiceManager.getInstance()
+        const authState = serviceManager.getState()
+
+        if (authState !== 'INITIALIZED') {
+            logging.info(`WebSearch: Auth not ready (state: ${authState}), scheduling retry`)
+            setTimeout(discoverWebSearch, SERVICE_MANAGER_POLL_INTERVAL_MS)
+            return
+        }
+
+        try {
+            const streamingClient = serviceManager.getStreamingClient()
+
+            const response = await streamingClient.invokeMCP({
+                jsonrpc: '2.0',
+                id: 'webSearch-discovery',
+                method: 'tools/list',
+            })
+
+            if (response.result) {
+                let tools = []
+                if (typeof response.result === 'string') {
+                    try {
+                        const parsed = JSON.parse(response.result)
+                        tools = parsed?.tools || []
+                    } catch (e) {
+                        logging.error(`WebSearch: Failed to parse result as JSON: ${e}`)
+                        return
+                    }
+                } else {
+                    tools = (response.result as any)?.tools || []
+                }
+
+                logging.info(`WebSearch: Discovered ${tools.length} tools`)
+
+                const webSearchTool = tools.find((tool: any) => tool.name === WEB_SEARCH)
+
+                if (webSearchTool) {
+                    logging.info(`WebSearch: Registering tool ${webSearchTool.name}`)
+
+                    agent.addTool(
+                        {
+                            name: webSearchTool.name,
+                            description: webSearchTool.description,
+                            inputSchema: webSearchTool.inputSchema,
+                        },
+                        async (input: any) => {
+                            const toolResponse = await streamingClient.invokeMCP({
+                                jsonrpc: '2.0',
+                                id: `webSearch-${Date.now()}`,
+                                method: 'tools/call',
+                                params: {
+                                    name: webSearchTool.name,
+                                    arguments: input,
+                                },
+                            })
+                            return toolResponse.result
+                        },
+                        ToolClassification.BuiltIn
+                    )
+                } else {
+                    logging.info('WebSearch: Tool not found in available tools')
+                }
+            }
+        } catch (error) {
+            logging.error(`WebSearch: Discovery failed: ${error}`)
+        }
+    }
+
+    lsp.onInitialized(() => {
+        void discoverWebSearch()
+    })
+
+    return () => {}
 }
