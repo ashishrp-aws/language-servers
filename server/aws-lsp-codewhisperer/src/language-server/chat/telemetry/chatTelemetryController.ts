@@ -411,6 +411,22 @@ export class ChatTelemetryController {
         })
     }
 
+    public emitBuiltInToolPermissionEvent(data?: {
+        toolName?: string
+        permission?: string
+        languageServerVersion?: string
+    }) {
+        this.#telemetry.emitMetric({
+            name: ChatTelemetryEventName.BuiltInToolPermission,
+            data: {
+                credentialStartUrl: this.#credentialsProvider.getConnectionMetadata()?.sso?.startUrl,
+                toolName: data?.toolName,
+                permission: data?.permission,
+                languageServerVersion: data?.languageServerVersion,
+            },
+        })
+    }
+
     public emitStartConversationMetric(tabId: string, metric: Partial<CombinedConversationEvent>) {
         this.emitConversationMetric(
             {

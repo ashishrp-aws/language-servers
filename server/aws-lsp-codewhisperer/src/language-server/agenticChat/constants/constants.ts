@@ -129,3 +129,9 @@ export const DEFAULT_LINUX_STOP_SHORTCUT = 'Meta + &#8679; + &#9003;'
 export const DEFAULT_MACOS_REJECT_SHORTCUT = '&#8679; &#8984; R'
 export const DEFAULT_WINDOW_REJECT_SHORTCUT = 'Ctrl + &#8679; + R'
 export const DEFAULT_LINUX_REJECT_SHORTCUT = 'Meta + &#8679; + R'
+
+// Built-in tool permission constants
+export const BUILTIN_TOOLS_SERVER_NAME = 'Built-in'
+export const BUILTIN_TOOL_PERMISSION_ASK = 'ask'
+export const BUILTIN_TOOL_PERMISSION_ALWAYS_ALLOW = 'alwaysAllow'
+export const BUILTIN_TOOL_PERMISSION_DENY = 'deny'

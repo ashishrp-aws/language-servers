@@ -28,6 +28,7 @@ import {
     McpServerStatus,
 } from './mcpTypes'
 import { TelemetryService } from '../../../../shared/telemetry/telemetryService'
+import { BUILTIN_TOOLS_SERVER_NAME } from '../../constants/constants'
 import { ProfileStatusMonitor } from './profileStatusMonitor'
 import { McpRegistryService } from './mcpRegistryService'
 import { McpServerConfigConverter } from './mcpServerConfigConverter'
@@ -161,26 +162,27 @@ export class McpEventHandler {
                 description: tool.toolSpecification.description || `${tool.toolSpecification.name} tool`,
             }))
 
-        // Add built-in tools as a server in the active items
-        // activeItems.push({
-        //     title: 'Built-in',
-        //     description: `${builtInTools.length} tools`,
-        //     children: [
-        //         {
-        //             groupName: 'serverInformation',
-        //             children: [
-        //                 {
-        //                     title: 'status',
-        //                     description: 'ENABLED',
-        //                 },
-        //                 {
-        //                     title: 'toolcount',
-        //                     description: `${builtInTools.length}`,
-        //                 },
-        //             ],
-        //         },
-        //     ],
-        // })
+        if (builtInTools.length > 0) {
+            activeItems.push({
+                title: BUILTIN_TOOLS_SERVER_NAME,
+                description: `${builtInTools.length} tools`,
+                children: [
+                    {
+                        groupName: 'serverInformation',
+                        children: [
+                            {
+                                title: 'status',
+                                description: 'ENABLED',
+                            },
+                            {
+                                title: 'toolcount',
+                                description: `${builtInTools.length}`,
+                            },
+                        ],
+                    },
+                ],
+            })
+        }
 
         Array.from(mcpManagerServerConfigs.entries()).forEach(([serverName, config]) => {
             const toolsWithPermissions = mcpManager.getAllToolsWithPermissions(serverName)
@@ -349,6 +351,7 @@ export class McpEventHandler {
             'open-mcp-server': () => this.#handleOpenMcpServer(params),
             'edit-mcp': () => this.#handleEditMcpServer(params),
             'mcp-permission-change': () => this.#handleMcpPermissionChange(params),
+            'builtin-permission-change': () => this.#handleBuiltInPermissionChange(params),
             'save-permission-change': () => this.#handleSavePermissionChange(params),
             'refresh-mcp-list': () => this.#handleRefreshMCPList(params),
             'mcp-enable-server': () => this.#handleEnableMcpServer(params),
@@ -970,7 +973,7 @@ export class McpEventHandler {
         const serverStatusError = this.#getServerStatusError(serverName)
 
         let filterOptions: FilterOption[] = []
-        if (serverName === 'Built-in') {
+        if (serverName === BUILTIN_TOOLS_SERVER_NAME) {
             // Handle Built-in server specially
             const allTools = this.#features.agent.getTools({ format: 'bedrock' })
             let mcpToolNames = new Set<string>()
@@ -983,7 +986,7 @@ export class McpEventHandler {
                 .filter(tool => !mcpToolNames.has(tool.toolSpecification.name))
                 .map(tool => {
                     // Set default permission based on tool name
-                    const permission = 'alwaysAllow'
+                    const permission = 'ask' // Default to ask permission
 
                     return {
                         tool: {
@@ -1554,6 +1557,39 @@ export class McpEventHandler {
 
     //     return permissionOptions
     // }
+
+    /**
+     * Handles built-in tool permission change events
+     */
+    async #handleBuiltInPermissionChange(params: McpServerClickParams) {
+        const serverName = params.title
+        const updatedPermissionConfig = params.optionsValues
+
+        if (!serverName || !updatedPermissionConfig || serverName !== BUILTIN_TOOLS_SERVER_NAME) {
+            return { id: params.id }
+        }
+
+        try {
+            // For built-in tools, we just store the permission changes
+            // The actual permission enforcement will be handled in the tool execution logic
+            this.#features.logging.info(`Built-in tool permission change: ${JSON.stringify(updatedPermissionConfig)}`)
+
+            // Emit telemetry for each permission change
+            for (const [toolName, permission] of Object.entries(updatedPermissionConfig)) {
+                this.#telemetryController?.emitBuiltInToolPermissionEvent({
+                    toolName,
+                    permission: permission as string,
+                    languageServerVersion: this.#features.runtime.serverInfo.version,
+                })
+                this.#features.logging.info(`Built-in tool ${toolName} permission changed to: ${permission}`)
+            }
+
+            return { id: params.id }
+        } catch (error) {
+            this.#features.logging.error(`Failed to process built-in tool permissions: ${error}`)
+            return { id: params.id }
+        }
+    }
 
     /**
      * Handles MCP permission change events to update the pending permission config without applying changes

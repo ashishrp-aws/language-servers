@@ -28,6 +28,7 @@ import {
     BUTTON_REJECT_SHELL_COMMAND,
     BUTTON_REJECT_MCP_TOOL,
     BUTTON_ALLOW_TOOLS,
+    BUTTON_TRUST_COMMAND,
     BUTTON_UNDO_CHANGES,
     BUTTON_UNDO_ALL_CHANGES,
     BUTTON_STOP_SHELL_COMMAND,
@@ -189,6 +190,10 @@ import {
     DEFAULT_WINDOW_STOP_SHORTCUT,
     FSREAD_MEMORY_BANK_MAX_PER_FILE,
     FSREAD_MEMORY_BANK_MAX_TOTAL,
+    BUILTIN_TOOLS_SERVER_NAME,
+    BUILTIN_TOOL_PERMISSION_ASK,
+    BUILTIN_TOOL_PERMISSION_ALWAYS_ALLOW,
+    BUILTIN_TOOL_PERMISSION_DENY,
 } from './constants/constants'
 import {
     AgenticChatError,
@@ -390,6 +395,51 @@ export class AgenticChatController implements ChatHandlers {
         }
     }
 
+    /**
+     * Gets quick settings for built-in tools to allow in-context permission changes
+     */
+    #getBuiltInToolQuickSettings(toolName: string) {
+        return [
+            {
+                type: 'select' as const,
+                messageId: `${BUILTIN_TOOLS_SERVER_NAME}@${toolName}`,
+                tabId: '',
+                options: [
+                    { id: BUILTIN_TOOL_PERMISSION_ASK, label: 'Ask', description: 'Ask for approval each time' },
+                    {
+                        id: BUILTIN_TOOL_PERMISSION_ALWAYS_ALLOW,
+                        label: 'Always allow',
+                        description: 'Always allow without asking',
+                    },
+                    { id: BUILTIN_TOOL_PERMISSION_DENY, label: 'Deny', description: 'Never run this tool' },
+                ],
+            },
+        ]
+    }
+
+    /**
+     * Handles trust command for built-in tools permission updates
+     */
+    #handleTrustCommand(metadata: Record<string, string>) {
+        const toolName = metadata.toolName
+        const serverName = metadata.serverName
+        const permission = metadata.permission
+
+        if (serverName === BUILTIN_TOOLS_SERVER_NAME && toolName && permission) {
+            // Update built-in tool permission
+            this.#features.logging.info(`Updating built-in tool permission: ${toolName} -> ${permission}`)
+
+            // Emit telemetry for the permission change
+            this.#telemetryController.emitBuiltInToolPermissionEvent({
+                toolName,
+                permission,
+                languageServerVersion: this.#features.runtime.serverInfo.version,
+            })
+
+            // TODO: Implement built-in tool permission storage
+        }
+    }
+
     async onButtonClick(params: ButtonClickParams): Promise<ButtonClickResult> {
         this.#log(`onButtonClick event with params: ${JSON.stringify(params)}`)
         const session = this.#chatSessionManagementService.getSession(params.tabId)
@@ -397,14 +447,16 @@ export class AgenticChatController implements ChatHandlers {
             params.buttonId === BUTTON_RUN_SHELL_COMMAND ||
             params.buttonId === BUTTON_REJECT_SHELL_COMMAND ||
             params.buttonId === BUTTON_REJECT_MCP_TOOL ||
-            params.buttonId === BUTTON_ALLOW_TOOLS
+            params.buttonId === BUTTON_ALLOW_TOOLS ||
+            params.buttonId === BUTTON_TRUST_COMMAND
         ) {
             if (!session.data) {
                 return { success: false, failureReason: `could not find chat session for tab: ${params.tabId} ` }
             }
-            // For 'allow-tools', remove suffix as permission card needs to be seperate from file list card
+            // For 'allow-tools' and 'trust-command', remove suffix as permission card needs to be separate from file list card
             const messageId =
-                params.buttonId === BUTTON_ALLOW_TOOLS && params.messageId.endsWith(SUFFIX_PERMISSION)
+                (params.buttonId === BUTTON_ALLOW_TOOLS || params.buttonId === BUTTON_TRUST_COMMAND) &&
+                params.messageId.endsWith(SUFFIX_PERMISSION)
                     ? params.messageId.replace(SUFFIX_PERMISSION, '')
                     : params.messageId
 
@@ -420,7 +472,13 @@ export class AgenticChatController implements ChatHandlers {
                       handler.reject(new ToolApprovalException('Command was rejected.', true))
                       this.#stoppedToolUses.add(messageId)
                   })()
-                : handler.resolve()
+                : (() => {
+                      handler.resolve()
+                      // Handle trust-command for built-in tools
+                      if (params.buttonId === BUTTON_TRUST_COMMAND && params.metadata) {
+                          this.#handleTrustCommand(params.metadata)
+                      }
+                  })()
             return {
                 success: true,
             }
@@ -3150,11 +3208,16 @@ export class AgenticChatController implements ChatHandlers {
         const isStandardTool = toolName !== undefined && this.#features.agent.getBuiltInToolNames().includes(toolName)
 
         if (isStandardTool) {
+            // Add quickSettings for built-in tools to allow in-context permission changes
+            // TODO: Fix quickSettings type compatibility
+            const quickSettings = undefined // this.#getBuiltInToolQuickSettings(toolName)
+
             return {
                 type: 'tool',
                 messageId: this.#getMessageIdForToolUse(toolType, toolUse),
                 header,
                 body: warning ? (toolName === EXECUTE_BASH ? '' : '\n\n') + body : body,
+                quickSettings,
             }
         } else {
             return {

@@ -20,6 +20,18 @@ export interface CommandValidation {
     commandCategory?: CommandCategory
 }
 
+export enum BuiltInToolPermissionType {
+    ask = 'ask',
+    alwaysAllow = 'alwaysAllow',
+    deny = 'deny',
+}
+
+export interface BuiltInToolPermission {
+    enabled: boolean
+    toolPerms: Record<string, BuiltInToolPermissionType>
+    __configPath__?: string
+}
+
 export async function validatePath(path: string, exists: (p: string) => Promise<boolean>) {
     if (!path || path.trim().length === 0) {
         throw new Error('Path cannot be empty.')

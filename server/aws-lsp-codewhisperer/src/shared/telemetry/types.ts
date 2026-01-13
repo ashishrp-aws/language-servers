@@ -204,6 +204,7 @@ export enum ChatTelemetryEventName {
     InteractWithAgenticChat = 'amazonq_interactWithAgenticChat',
     MCPConfig = 'amazonq_mcpConfig',
     MCPServerInit = 'amazonq_mcpServerInit',
+    BuiltInToolPermission = 'amazonq_builtInToolPermission',
     LoadHistory = 'amazonq_loadHistory',
     CompactHistory = 'amazonq_compactHistory',
     CompactNudge = 'amazonq_compactNudge',
@@ -230,6 +231,7 @@ export interface ChatTelemetryEventMap {
     [ChatTelemetryEventName.InteractWithAgenticChat]: InteractWithAgenticChatEvent
     [ChatTelemetryEventName.MCPConfig]: MCPConfigEvent
     [ChatTelemetryEventName.MCPServerInit]: MCPServerInitializeEvent
+    [ChatTelemetryEventName.BuiltInToolPermission]: BuiltInToolPermissionEvent
     [ChatTelemetryEventName.LoadHistory]: LoadHistoryEvent
     [ChatTelemetryEventName.CompactHistory]: CompactHistoryEvent
     [ChatTelemetryEventName.CompactNudge]: CompactNudgeEvent
@@ -359,6 +361,13 @@ export type MCPServerInitializeEvent = {
     scope?: string
     source?: string
     transportType?: string
+}
+
+export type BuiltInToolPermissionEvent = {
+    credentialStartUrl?: string
+    toolName?: string
+    permission?: string
+    languageServerVersion?: string
 }
 
 export type EnterFocusChatEvent = {
