@@ -1,5 +1,81 @@
 # Changelog
 
+## [0.1.56](https://github.com/ashishrp-aws/language-servers/compare/chat-client/v0.1.55...chat-client/v0.1.56) (2026-08-05)
+
+
+### Features
+
+* add conversation compaction ([#1895](https://github.com/ashishrp-aws/language-servers/issues/1895)) ([8bb7144](https://github.com/ashishrp-aws/language-servers/commit/8bb7144e45cfce6cc9337fd49de7edbee61105b8))
+* add model description to dropdown ([#2374](https://github.com/ashishrp-aws/language-servers/issues/2374)) ([ed8c6dd](https://github.com/ashishrp-aws/language-servers/commit/ed8c6dda1312f728e9ee7472f7ca447196ad9d84))
+* add support for getSupplementalContext LSP API ([#2212](https://github.com/ashishrp-aws/language-servers/issues/2212)) ([2ddcae7](https://github.com/ashishrp-aws/language-servers/commit/2ddcae7a4fac6b89cbc9784911959743ea0a6d11))
+* Adding ATX-FES apis support for transformation ([#2521](https://github.com/ashishrp-aws/language-servers/issues/2521)) ([56ee489](https://github.com/ashishrp-aws/language-servers/commit/56ee4891a2e19b259c129fd531f8b06f763c1b57))
+* **amazonq:** add client-side chat delivery metrics ([#2766](https://github.com/ashishrp-aws/language-servers/issues/2766)) ([614bbf5](https://github.com/ashishrp-aws/language-servers/commit/614bbf5e122f30c381d7b4dbf9def3679b4d49be))
+* **amazonq:** add two more tips for the did you know section ([#2063](https://github.com/ashishrp-aws/language-servers/issues/2063)) ([9949c6d](https://github.com/ashishrp-aws/language-servers/commit/9949c6dd81c56b5ea82563310da2eaee4d00a059))
+* **amazonq:** added mcp admin level configuration with GetProfile ([#2000](https://github.com/ashishrp-aws/language-servers/issues/2000)) ([fd6e9a8](https://github.com/ashishrp-aws/language-servers/commit/fd6e9a829c6229c276de5340dffce52b426a864d))
+* **amazonq:** adding MCP registry for governance for Amazon Q ([#2512](https://github.com/ashishrp-aws/language-servers/issues/2512)) ([e8d4bf5](https://github.com/ashishrp-aws/language-servers/commit/e8d4bf588e9b7bc13102b33ee03bd357f9698811))
+* **amazonq:** default to diff-based scans ([#2195](https://github.com/ashishrp-aws/language-servers/issues/2195)) ([da4c3db](https://github.com/ashishrp-aws/language-servers/commit/da4c3db5329bd50cfe249bf8c1d59afa9bcb0157))
+* **amazonq:** enable show logs feature ([#1947](https://github.com/ashishrp-aws/language-servers/issues/1947)) ([86ea83d](https://github.com/ashishrp-aws/language-servers/commit/86ea83dd53b447f6decccf16559b76f4989ea712))
+* **amazonq:** enable sonnet 4 for fra region ([#2069](https://github.com/ashishrp-aws/language-servers/issues/2069)) ([3a4b8df](https://github.com/ashishrp-aws/language-servers/commit/3a4b8df981b2c3b0532360a11472169fffec7924))
+* **amazonq:** read tool ui revamp ([c65428b](https://github.com/ashishrp-aws/language-servers/commit/c65428bab2cf5e47badf1e3a9453babcf881e60c))
+* **amazonq:** read tool ui revamp ([#2113](https://github.com/ashishrp-aws/language-servers/issues/2113)) ([#2121](https://github.com/ashishrp-aws/language-servers/issues/2121)) ([93cf229](https://github.com/ashishrp-aws/language-servers/commit/93cf229149ba60491f9f5763793db4a9f570b611))
+* **amazonq:** redirect /review, rename CodeReview tool, emit metrics, modify prompts ([#1964](https://github.com/ashishrp-aws/language-servers/issues/1964)) ([ad8e2db](https://github.com/ashishrp-aws/language-servers/commit/ad8e2db77e34f369fef9af71cdda2d3522f555c6))
+* **amazonq:** revert auto-approve ([#2002](https://github.com/ashishrp-aws/language-servers/issues/2002)) ([c8181f7](https://github.com/ashishrp-aws/language-servers/commit/c8181f7a1de224dfcc7a77cd0bfc905fa1018372))
+* Auto fetch models from listAvailableModels API ([#2171](https://github.com/ashishrp-aws/language-servers/issues/2171)) ([8600c52](https://github.com/ashishrp-aws/language-servers/commit/8600c524877abb459e9338399352446c0dcff6f0))
+* **chat-client:** add auto-approve (trust mode) for built-in tools ([#1949](https://github.com/ashishrp-aws/language-servers/issues/1949)) ([f17b631](https://github.com/ashishrp-aws/language-servers/commit/f17b631d9e06371a11ef8e9cb1413762fb51a143))
+* **chat-client:** add built-in tool permission and enable auto-approve ([#1890](https://github.com/ashishrp-aws/language-servers/issues/1890)) ([03b59c8](https://github.com/ashishrp-aws/language-servers/commit/03b59c8fba58db0f6b6c387cf5d53227c3f54673))
+* **chat-client:** add shortcut for stop/reject/run commands ([#1932](https://github.com/ashishrp-aws/language-servers/issues/1932)) ([087f338](https://github.com/ashishrp-aws/language-servers/commit/087f3387ba736e92d014274e195f7ef76e377f1e))
+* **chat-client:** handle keyboard shortcut for run/reject/stop shell commands and tooltips ([#1885](https://github.com/ashishrp-aws/language-servers/issues/1885)) ([f8e9461](https://github.com/ashishrp-aws/language-servers/commit/f8e94615b5ce8a3f4bf8837627fa4816a09cbef2))
+* memory bank support ([#2314](https://github.com/ashishrp-aws/language-servers/issues/2314)) ([0e215fc](https://github.com/ashishrp-aws/language-servers/commit/0e215fc0e475b4c40a8237492371716982d4d532))
+* render welcome splash via tabHeaderDetails ([#2739](https://github.com/ashishrp-aws/language-servers/issues/2739)) ([#2748](https://github.com/ashishrp-aws/language-servers/issues/2748)) ([1fd847b](https://github.com/ashishrp-aws/language-servers/commit/1fd847b35dff9a1b27eb29ebb934b1c69990c4f2))
+* send pinned context button immediately with pending state  ([#2353](https://github.com/ashishrp-aws/language-servers/issues/2353)) ([bee5cad](https://github.com/ashishrp-aws/language-servers/commit/bee5cadeaf8840a8af08acfe8b58442aac7ad567))
+* support http transport without authorization for MCP ([97e806c](https://github.com/ashishrp-aws/language-servers/commit/97e806ce7ea5e5be1fd60c4a4d9a54cf76c8f8cb))
+* use dynamic token limits from listAvailableModels API ([#2539](https://github.com/ashishrp-aws/language-servers/issues/2539)) ([f87ac9f](https://github.com/ashishrp-aws/language-servers/commit/f87ac9fce32d235649f81957b71d424264aae9c8))
+
+
+### Bug Fixes
+
+* add postMessage origin check to prevent cross-origin XSS ([#2732](https://github.com/ashishrp-aws/language-servers/issues/2732)) ([0dabdea](https://github.com/ashishrp-aws/language-servers/commit/0dabdeab4b046a7c52f161afb37482f9ca0a210e))
+* allow empty/null origin in postMessage check for Eclipse SWT browser ([#2740](https://github.com/ashishrp-aws/language-servers/issues/2740)) ([200455f](https://github.com/ashishrp-aws/language-servers/commit/200455f801df9d97cff39973ff838fad9c8d1a87))
+* amazon q chat history restoration to display rich ui elements and persisting model/agentic toggle preferences. ([#2610](https://github.com/ashishrp-aws/language-servers/issues/2610)) ([75135dd](https://github.com/ashishrp-aws/language-servers/commit/75135ddf2342a355a1fcba463dd6a42d040b75fa))
+* **amazonq:** bumping up the language server runtime version ([#2621](https://github.com/ashishrp-aws/language-servers/issues/2621)) ([33c9eba](https://github.com/ashishrp-aws/language-servers/commit/33c9eba1fcc5ab7da5c520842c239e22b2237e4c))
+* **amazonq:** change to use promptStickyCard to show image verification notification ([#1904](https://github.com/ashishrp-aws/language-servers/issues/1904)) ([caaefef](https://github.com/ashishrp-aws/language-servers/commit/caaefef2c9b2af66840ec2f7ccabe9bf937c2983))
+* **amazonq:** disable typewriter animation ([#2160](https://github.com/ashishrp-aws/language-servers/issues/2160)) ([db45d01](https://github.com/ashishrp-aws/language-servers/commit/db45d01adba10e8a04d868e1062f899df4f5b7e4))
+* **amazonq:** fix for mcp server unnecessary refresh from file watchers ([#1933](https://github.com/ashishrp-aws/language-servers/issues/1933)) ([208909b](https://github.com/ashishrp-aws/language-servers/commit/208909b55ecda40ff8d412b2b3be890eccee70bc))
+* **amazonq:** Fix mock fs clean; Node version upgrade ([#2324](https://github.com/ashishrp-aws/language-servers/issues/2324)) ([1d9afd4](https://github.com/ashishrp-aws/language-servers/commit/1d9afd410e19624223e300ca06ea7d08a112cc82))
+* **amazonq:** fix the issue that invalid image notification always show ([#2007](https://github.com/ashishrp-aws/language-servers/issues/2007)) ([ceed762](https://github.com/ashishrp-aws/language-servers/commit/ceed762ace5f94cb0e0a7978eb6c4894bc11ce42))
+* **amazonq:** fix to add disable/enable feature back to mcp servers ([#2052](https://github.com/ashishrp-aws/language-servers/issues/2052)) ([c03e017](https://github.com/ashishrp-aws/language-servers/commit/c03e017b9ccbbbb9c80a3c3afd5da38a50bd6cff))
+* **amazonq:** improve cross theme support ([#2036](https://github.com/ashishrp-aws/language-servers/issues/2036)) ([002a255](https://github.com/ashishrp-aws/language-servers/commit/002a255c28ea07ca6623dbd074101cbc6082ceb8))
+* **amazonq:** improve welcome screen and enable tips ([#2035](https://github.com/ashishrp-aws/language-servers/issues/2035)) ([ac00b94](https://github.com/ashishrp-aws/language-servers/commit/ac00b94df45c2bba0666423c937757fad4db95cc))
+* **amazonq:** mcp tool panel blocks amazon q chat interface when using right-click context menu ([#2442](https://github.com/ashishrp-aws/language-servers/issues/2442)) ([11900ca](https://github.com/ashishrp-aws/language-servers/commit/11900ca371adee2611698427dbec7c9323ef8e01))
+* **amazonq:** prevent file link click from crashing language server ([#2718](https://github.com/ashishrp-aws/language-servers/issues/2718)) ([#2730](https://github.com/ashishrp-aws/language-servers/issues/2730)) ([51e1849](https://github.com/ashishrp-aws/language-servers/commit/51e184948387714bccd5b9c5e50e07d47d771fb1))
+* **amazonq:** refactor the welcome screen to make it look better ([#2027](https://github.com/ashishrp-aws/language-servers/issues/2027)) ([1f7c608](https://github.com/ashishrp-aws/language-servers/commit/1f7c608ba2f89c8b0675e62451e27d2dc547613c))
+* **amazonq:** revert commit f17b631d9e06371a11ef8e9cb1413762fb51a143 ([#1965](https://github.com/ashishrp-aws/language-servers/issues/1965)) ([8c2cab6](https://github.com/ashishrp-aws/language-servers/commit/8c2cab6995922c96030b5bbdf3cbbdef7eadd7c2))
+* **amazonq:** update mcp and persona config to agent config ([#1897](https://github.com/ashishrp-aws/language-servers/issues/1897)) ([530977f](https://github.com/ashishrp-aws/language-servers/commit/530977f8c73c7946a0205f02014248d71b4b1fe0))
+* **chat-client:** increase timeout for flaky sendGenericCommand test ([#2746](https://github.com/ashishrp-aws/language-servers/issues/2746)) ([d7d1927](https://github.com/ashishrp-aws/language-servers/commit/d7d1927f405571334b58f48bef57a14eb0891f2a))
+* **chat-client:** revert for add built-in tool permission and enable auto-approve ([#1890](https://github.com/ashishrp-aws/language-servers/issues/1890)) ([#1900](https://github.com/ashishrp-aws/language-servers/issues/1900)) ([34b41b8](https://github.com/ashishrp-aws/language-servers/commit/34b41b8f87c21d2ee6b98643339dbdfa71efcb77))
+* **chat-client:** revert for amazon q keyboard shortcuts feature ([#1901](https://github.com/ashishrp-aws/language-servers/issues/1901)) ([522f8de](https://github.com/ashishrp-aws/language-servers/commit/522f8de6dba8dfa9b4363934cd7fcea905add1ce))
+* cve and bump language server runtime version to 0.3.10 ([#2544](https://github.com/ashishrp-aws/language-servers/issues/2544)) ([d06e09f](https://github.com/ashishrp-aws/language-servers/commit/d06e09f1c7c2ce017d0a5b4394cc8d17454e2862))
+* enable test flag for amazon q ui testing ([#2046](https://github.com/ashishrp-aws/language-servers/issues/2046)) ([f18ea96](https://github.com/ashishrp-aws/language-servers/commit/f18ea96c1e5cd9b93974a047d7f2bb1aba0d9436))
+* fix for button text and remove profilearn caching ([#2137](https://github.com/ashishrp-aws/language-servers/issues/2137)) ([2a4171a](https://github.com/ashishrp-aws/language-servers/commit/2a4171a74c15c23c23c481060496162bcc9e6284))
+* fix for mcp servers refresh ([#2550](https://github.com/ashishrp-aws/language-servers/issues/2550)) ([cd75394](https://github.com/ashishrp-aws/language-servers/commit/cd753948c3b3b9b07b626fc41391bd91b55a0d39))
+* make code block scrollable when sending to prompt ([#2587](https://github.com/ashishrp-aws/language-servers/issues/2587)) ([a837cc9](https://github.com/ashishrp-aws/language-servers/commit/a837cc90aa5d37e388a89090e940cc0e7a4a2674))
+* migration from /agents ux ([#2248](https://github.com/ashishrp-aws/language-servers/issues/2248)) ([debeb41](https://github.com/ashishrp-aws/language-servers/commit/debeb414fd0d4d873af2f36cde0ebbeab16d16a4))
+* network connection error caused by server runtime dependency changes on windows machine ([#2568](https://github.com/ashishrp-aws/language-servers/issues/2568)) ([5d38b12](https://github.com/ashishrp-aws/language-servers/commit/5d38b1297a384e5c30d88b05bce075afbaa1a2fa))
+* optimize memory bank token usage and add new tab support ([#2366](https://github.com/ashishrp-aws/language-servers/issues/2366)) ([3057d56](https://github.com/ashishrp-aws/language-servers/commit/3057d56e4a3047d1715d6e3560e9f934d1de469c))
+* remove disclaimer message ([#1884](https://github.com/ashishrp-aws/language-servers/issues/1884)) ([0845eed](https://github.com/ashishrp-aws/language-servers/commit/0845eeda8d73ed1df3b8801e79dad1ddd7016781))
+* replace cancel with stop ([#1935](https://github.com/ashishrp-aws/language-servers/issues/1935)) ([2f51923](https://github.com/ashishrp-aws/language-servers/commit/2f51923f9d3497469c70162235482b569e2d796e))
+* replace thinking with working and replace stop with cancel ([#1922](https://github.com/ashishrp-aws/language-servers/issues/1922)) ([371e731](https://github.com/ashishrp-aws/language-servers/commit/371e731545f7572d3356d061cd8b94db35e4c333))
+* update @aws/mynah-ui to 4.39.1 for XSS security fixes ([#2653](https://github.com/ashishrp-aws/language-servers/issues/2653)) ([db4283f](https://github.com/ashishrp-aws/language-servers/commit/db4283f57f65cc9d1b13e7e0c22f4bedf680c873))
+* use document change events for auto trigger classifier input ([#1912](https://github.com/ashishrp-aws/language-servers/issues/1912)) ([2204da6](https://github.com/ashishrp-aws/language-servers/commit/2204da6193f2030ee546f61c969b1a664d8025e3))
+* Use file context override in the inline completion params for Jupyter Notebook ([#2114](https://github.com/ashishrp-aws/language-servers/issues/2114)) ([91c8398](https://github.com/ashishrp-aws/language-servers/commit/91c839857f8aa4d79098189f9fb620b361c51289))
+* use new language server runtime ([#2023](https://github.com/ashishrp-aws/language-servers/issues/2023)) ([83ea1e4](https://github.com/ashishrp-aws/language-servers/commit/83ea1e42fe52990696eb9b878fa11e2c5331bec5))
+* validate Create Prompt & Create Rule prompts input onChange ([#1854](https://github.com/ashishrp-aws/language-servers/issues/1854)) ([ee215c4](https://github.com/ashishrp-aws/language-servers/commit/ee215c4bc652a54556d31e64f86ed5179d174b4b))
+
+
+### Performance Improvements
+
+* **amazonq:** context command performance ([#2682](https://github.com/ashishrp-aws/language-servers/issues/2682)) ([f8dec9a](https://github.com/ashishrp-aws/language-servers/commit/f8dec9a65b7e72e78e5e16cbbfd470b2d69e75b0))
+
 ## [0.1.55](https://github.com/aws/language-servers/compare/chat-client/v0.1.54...chat-client/v0.1.55) (2026-06-30)
 
 
